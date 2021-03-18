@@ -4,6 +4,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -27,8 +28,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int MESSAGE_ARRIVED = 1;
 
     private static final String TAG = "MainActivityTag";
-    private IMusicManager mRemoteMusicManager; //音乐管理类  通过aidl文件编译生成的java类
-
+    private IMusicManager mRemoteMusicManager;
 
     //监听新音乐的到达的接口
     private INewMusicArrivedListener musicArrivedListener = new INewMusicArrivedListener.Stub() {
@@ -39,6 +39,7 @@ public class MainActivity extends AppCompatActivity {
          */
         @Override
         public void onNewBookArrived(Music newMusic) throws RemoteException {
+            Log.i(TAG, "onNewBookArrived: 收到了远程服务回调");
             mHandler.obtainMessage(MESSAGE_ARRIVED, newMusic ).sendToTarget();
         }
     };
@@ -47,7 +48,7 @@ public class MainActivity extends AppCompatActivity {
         @Override public void handleMessage(Message msg) {
             switch (msg.what) {
                 case MESSAGE_ARRIVED:
-
+                    new BookListAsyncTask().execute();
                     break;
                 default:
                     super.handleMessage(msg);
@@ -59,20 +60,17 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-    private IMusicManager musicManager;
-
-
     //绑定服务时的链接参数
     private ServiceConnection mConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
-            Log.i(TAG, "onServiceConnected: 绑定成功");
+            Log.i(TAG, "onServiceConnected: 绑定成功，准备添加音乐");
             IMusicManager musicManager = IMusicManager.Stub.asInterface(service);
             try {
                 mRemoteMusicManager = musicManager;
-                Music newMusic = new Music("《客户端音乐》", "rock");
-                musicManager.addMusic(newMusic);
-                musicManager.registerListener(musicArrivedListener);
+                Music newMusic = new Music("《客户端音乐》", "author");
+                mRemoteMusicManager.addMusic(newMusic);
+                mRemoteMusicManager.registerListener(musicArrivedListener);
               //  new BookListAsyncTask().execute();
             } catch (RemoteException e) {
                 e.printStackTrace();
@@ -134,7 +132,7 @@ public class MainActivity extends AppCompatActivity {
 //        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
 //
 //
-
+//
 
         /**
          * meizu 手机，必须这样才行
@@ -150,10 +148,10 @@ public class MainActivity extends AppCompatActivity {
         intent.setAction("com.example.aidlserver.action");
         intent.setComponent(cn);
 
-        startService(intent);//这里必须要先startServer然后在bindService不知道魅族在搞什么鬼
-        bindService(intent, mConnection, Context.BIND_AUTO_CREATE); //绑定远程服务
+        getApplicationContext().startService(intent);//这里必须要先startServer然后在bindService不知道魅族在搞什么鬼
+        boolean result = bindService(intent, mConnection, Context.BIND_AUTO_CREATE); //绑定远程服务
 
-        Log.i(TAG, "bindService: 准备绑定远程服务结束");
+        Log.i(TAG, "bindService: 准备绑定远程服务结束,result :" + result);
 
 
     }
@@ -169,4 +167,48 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         unbindService(mConnection);
     }
+
+    public void addMusicList(View view) {
+
+        Log.i(TAG, "addMusicList: 准备添加音乐");
+        try {
+            if (mRemoteMusicManager != null){
+                Music newMusic = new Music("《客户端音乐》", "rock");
+                mRemoteMusicManager.addMusic(newMusic);
+
+            }else {
+                Log.i(TAG, "addMusicList: manager is null !");
+
+            }
+        } catch (RemoteException e) {
+            e.printStackTrace();
+            Log.i(TAG, "onServiceConnected: error:"  + e.toString());
+        }
+
+    }
+
+    private class BookListAsyncTask extends AsyncTask<Void, Void, List<Music>> {
+        @Override
+        protected List<Music> doInBackground(Void... params) {
+            Log.i(TAG, "doInBackground: 后台获取服务");
+            List<Music> list = null;
+            try {
+                list = mRemoteMusicManager.getMusicList();
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+            return list;
+        }
+
+        @Override
+        protected void onPostExecute(List<Music> musicList) {
+            Log.i(TAG, "onPostExecute: 后台拉取完成");
+            String content = "";
+            for (int i = 0; i < musicList.size(); ++i) {
+                content += musicList.get(i).toString() + "\n";
+            }
+            music_list.setText(content);
+        }
+    }
+
 }

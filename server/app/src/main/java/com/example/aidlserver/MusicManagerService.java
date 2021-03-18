@@ -4,6 +4,7 @@ package com.example.aidlserver;
 import android.app.Service;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
@@ -22,8 +23,8 @@ import java.util.List;
  */
 public class MusicManagerService extends Service {
 
-    private static final String TAG =  MusicManagerService.class.getSimpleName();
 
+    private static final String TAG = "MainActivityTag";
     private ArrayList<Music> mMusicList = new ArrayList<>();  //生成的音乐列表
     private List<INewMusicArrivedListener> mListenerList = new ArrayList<>(); //客户端注册的接口列表
     private boolean isServiceDestroy = false; //当前服务是否结束
@@ -53,6 +54,14 @@ public class MusicManagerService extends Service {
         @Override
         public void addMusic(Music music) throws RemoteException {
             mMusicList.add(music);
+            try {
+
+                onNewMusicArrived(music);
+
+            }catch (Exception e){
+
+            }
+
         }
 
         @Override
@@ -89,10 +98,9 @@ public class MusicManagerService extends Service {
         super.onCreate();
         Log.e(TAG,"onCreate-------------");
         //首先添加两首歌曲
-        mMusicList.add(new Music("《封锁我一生》", "王杰"));
-        mMusicList.add(new Music("《稻香》", "周杰伦"));
+        mMusicList.add(new Music("服务器1", "people1"));
+        mMusicList.add(new Music("服务器2", "people2"));
         //音乐制造机器
-        new Thread(new ServiceWorker()).start();
     }
 
     @Override public void onDestroy() {
@@ -101,42 +109,20 @@ public class MusicManagerService extends Service {
         Log.e(TAG,"onDestroy-----");
     }
 
-    //音乐制造机
-    //每5秒生产一首音乐
-    private class ServiceWorker implements Runnable {
-        @Override public void run() {
-            while (!isServiceDestroy) {
-                try {
-                    Thread.sleep(5000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                num++;
-                if (num == 5) {
-                    isServiceDestroy= true;
-                }
-                Message msg = new Message();
-                mHandler.sendMessage(msg); // 向Handler发送消息,更新UI
-            }
-        }
-    }
 
-    private Handler mHandler = new Handler() {
 
-        @Override
-        public void handleMessage(Message msg) {
-            int id = 1 + mMusicList.size();
-            Music music = new Music("《张学友——新歌》"+id, "张学友");
-            try {
-                onNewMusicArrived(music);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    };
+
 
     @Nullable
     @Override public IBinder onBind(Intent intent) {
+
+        // TODO: Return the communication channel to the service.
+        int check = checkCallingOrSelfPermission("com.example.zs.ipcdemo.permission.ACCESS_BOOK_SERVIC");
+        Log.i(TAG, "onBind: ");
+        if(check == PackageManager.PERMISSION_DENIED){
+            return null;
+        }
+
         return mBinder;
     }
 

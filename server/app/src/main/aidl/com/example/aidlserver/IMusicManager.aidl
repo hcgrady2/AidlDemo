@@ -8,8 +8,8 @@ import com.example.aidlserver.INewMusicArrivedListener;
 
 interface IMusicManager {
 
-    List<Music> getMusicList(); // 返回书籍列表
-    void addMusic(in Music music); // 添加书籍
+    List<Music> getMusicList();
+    void addMusic(in Music music);
 
     void registerListener(INewMusicArrivedListener listener); // 注册接口
     void unregisterListener(INewMusicArrivedListener listener); // 注销接口
